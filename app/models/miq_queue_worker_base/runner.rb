@@ -131,6 +131,8 @@ class MiqQueueWorkerBase::Runner < MiqWorker::Runner
   end
 
   def deliver_message(msg)
+    _log.info("#{log_prefix} [#{Process.pid}]  2JAMESWONG2 got message #{msg}")
+
     return deliver_queue_message(msg) if msg.kind_of?(MiqQueue)
     return process_message(msg)       if msg.kind_of?(String)
 
