@@ -108,6 +108,10 @@ module ManageIQ::Providers
           end
         end
 
+        storage_profile_ids = @vc_data[:storage_profile].collect { |uid, _profile| uid }
+        @vc_data[:storage_profile_datastore] = @vi.pbmQueryMatchingHub(storage_profile_ids)
+        @vc_data[:storage_profile_entity]    = @vi.pbmQueryAssociatedEntity(storage_profile_ids)
+
         # Merge Virtual Apps into Resource Pools
         if @vc_data.key?(:vapp)
           @vc_data[:rp] ||= {}
