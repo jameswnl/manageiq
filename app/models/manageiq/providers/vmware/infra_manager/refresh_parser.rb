@@ -1038,7 +1038,7 @@ module ManageIQ::Providers
         return result, result_uids
       end
 
-      def self.vm_inv_to_disk_hashes(inv, storage_uids, storage_profile_by_disk_mor = {})
+      def self.vm_inv_to_disk_hashes(inv, storage_uids, storage_profile_by_disk_mor)
         vm_mor = inv['MOR']
         inv = inv.fetch_path('config', 'hardware', 'device')
 
@@ -1676,7 +1676,14 @@ module ManageIQ::Providers
 
         uids[:storages] = reconfig_storage_inv_to_hashes(inv[:storage])
         uids[:lans] = reconfig_host_inv_to_lan_hashes(inv[:host])
-        result[:vms] = reconfig_vm_inv_to_hashes(inv[:vm], uids[:storages], uids[:lans])
+        result[:storage_profiles], uids[:storage_profiles] = storage_profile_inv_to_hashes(inv[:storage_profile])
+        result[:vms] = reconfig_vm_inv_to_hashes(
+          inv[:vm],
+          inv[:storage_profile_entity],
+          uids[:storages],
+          uids[:lans],
+          uids[:storage_profiles]
+        )
 
         result
       end
@@ -1727,9 +1734,14 @@ module ManageIQ::Providers
         result_uids
       end
 
-      def self.reconfig_vm_inv_to_hashes(inv, storage_uids, lan_uids)
+      def self.reconfig_vm_inv_to_hashes(inv, storage_profile_entity_inv, storage_uids, lan_uids, storage_profile_uids)
         result = []
         return result if inv.nil?
+
+        storage_profile_by_disk_mor, storage_profile_by_vm_mor = storage_profile_by_entity(
+            storage_profile_entity_inv,
+            storage_profile_uids
+        )
 
         inv.each do |mor, vm_inv|
           mor = vm_inv['MOR'] # Use the MOR directly from the data since the mor as a key may be corrupt
@@ -1784,7 +1796,7 @@ module ManageIQ::Providers
           cpu    = resource_config && resource_config["cpuAllocation"]
 
           hardware = vm_inv_to_hardware_hash(vm_inv)
-          hardware[:disks] = vm_inv_to_disk_hashes(vm_inv, storage_uids)
+          hardware[:disks] = vm_inv_to_disk_hashes(vm_inv, storage_uids, storage_profile_by_disk_mor)
           hardware[:guest_devices], = vm_inv_to_guest_device_hashes(vm_inv, lan_uids)
           uid = hardware[:bios]
 
@@ -1809,6 +1821,7 @@ module ManageIQ::Providers
             :cpu_shares            => cpu && cpu.fetch_path("shares", "shares"),
             :cpu_shares_level      => cpu && cpu.fetch_path("shares", "level"),
 
+            :storage_profile       => storage_profile_by_vm_mor[mor],
             :operating_system      => vm_inv_to_os_hash(vm_inv),
             :hardware              => hardware,
           }

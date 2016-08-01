@@ -178,6 +178,7 @@ module EmsRefresh
     reconfig_find_lans_inventory(vm.host, hashes[:uid_lookup][:lans].values)
     reconfig_find_storages_inventory(hashes[:uid_lookup][:storages].values)
     hash = hashes[:vms].first
+    hash[:storage_profile_id] = hash.fetch_path(:storage_profile, :id)
 
     child_keys = [:operating_system, :hardware]
     remove_keys = child_keys
