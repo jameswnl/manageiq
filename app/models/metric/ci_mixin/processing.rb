@@ -58,6 +58,23 @@ module Metric::CiMixin::Processing
         end
       end
 
+      ActiveMetrics::Base.connection.write_multiple(
+        rt_rows.flat_map do |ts, rt|
+          rt_tags   = rt.slice(*%i(capture_interval_name capture_interval resource_name)).symbolize_keys
+          rt_fields = rt.except(*%i(capture_interval_name capture_interval resource_name timestamp instance_id class_name resource_type resource_id))
+
+          rt_fields.map do |k, v|
+            {
+              :timestamp   => Time.parse(ts),
+              :metric_name => k,
+              :value       => v,
+              :resource    => self,
+              :tags        => rt_tags
+            }
+          end
+        end
+      )
+
       # Read all the existing perfs for this time range to speed up lookups
       obj_perfs, = Benchmark.realtime_block(:db_find_prev_perfs) do
         Metric::Finders.hash_by_capture_interval_name_and_timestamp(self, start_time, end_time, interval_name)
