@@ -9,10 +9,6 @@ module ActiveMetrics
         ActiveRecord::Base.connection
       end
 
-      def write(metric)
-        write_multiple(metric)
-      end
-
       def write_multiple(*metrics)
         metrics.flatten!
 
