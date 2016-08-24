@@ -3,6 +3,9 @@ raise "Ruby versions less than 2.2.2 are unsupported!" if RUBY_VERSION < "2.2.2"
 # VMDB specific gems
 #
 
+gem 'influxdb', :require => false
+gem 'elasticsearch', :require => false
+
 # when using this Gemfile inside a providers Gemfile, the dependency for the provider is already declared
 unless dependencies.detect { |d| d.name == "manageiq-providers-amazon" }
   gem "manageiq-providers-amazon", :git => "https://github.com/ManageIQ/manageiq-providers-amazon", :branch => "master"
