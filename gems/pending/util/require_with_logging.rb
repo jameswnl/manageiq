@@ -8,7 +8,11 @@ $req_log ||= File.open(File.join($req_log_path, $req_log_file), "w")
 # $req_log = $stdout
 $req_log.sync = true
 
-$req_depth = 0
+$req_log2 ||= File.open(File.join($req_log_path, $req_log_file.sub(".log", ".out")), "w")
+$req_log2.sync = true
+
+$req_stack = []
+$req_start = Time.now.to_f * 1000
 
 module Kernel
   private
@@ -25,9 +29,11 @@ module Kernel
   REQ_LOG_TREE = "| "
 
   def log_require(path, mode, timing = nil)
-    $req_depth -= 1 if mode == true || mode == false || mode == :fail
-    $req_log.puts "#{$req_depth.to_s.rjust(3)}  #{REQ_LOG_OPERS[mode]}  #{REQ_LOG_TREE * $req_depth}#{path.inspect[1..-2]}#{timing.nil? ? '' : " (#{"%.6f" % timing})"}"
-    $req_depth += 1 if mode == :enter || mode == :reenter
+    $req_log2.puts "#{$req_stack.join(";")} #{Time.now.to_f * 1000 - $req_start}" if timing
+    $req_stack.pop if mode == true || mode == false || mode == :fail
+    depth = $req_stack.size
+    $req_log.puts "#{depth.to_s.rjust(3)}  #{REQ_LOG_OPERS[mode]}  #{REQ_LOG_TREE * depth}#{path.inspect[1..-2]}#{timing.nil? ? '' : " (#{"%.6f" % timing})"}"
+    $req_stack.push(path) if mode == :enter || mode == :reenter
   end
 
   def with_require_logging(path, mode = :enter)
