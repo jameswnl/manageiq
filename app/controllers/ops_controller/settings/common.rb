@@ -175,7 +175,7 @@ module OpsController::Settings::Common
     subscriptions = get_subscriptions_array(subscriptions) unless subscriptions.empty?
     if replication_type == :global
       subscriptions.each do |h|
-        region = MiqRegion.where(:region => h['provider_region']).first
+        region = MiqRegion.find_by( :region => h['provider_region'])
         remote_ws_address = region ? region.remote_ws_address : ''
         h.merge!(:auth_key_configured => region && region.auth_key_configured? ? true : false, :remote_ws_address => remote_ws_address)
       end
@@ -243,7 +243,7 @@ module OpsController::Settings::Common
       add_flash(_("Invalid data for enabling Central Admin"), :error)
     else
       provider_region = @_params[:provider_region]
-      region = MiqRegion.where(:region => provider_region).first
+      region = MiqRegion.find_by(:region => provider_region)
       if region
         region.generate_auth_key_queue(@_params[:ssh_user], @_params[:ssh_password], @_params[:ssh_host])
         add_flash(_("Enable Central Admin has been successfully initiated"))
@@ -261,7 +261,7 @@ module OpsController::Settings::Common
       add_flash(_("Invalid data for disabling Central Admin"), :error)
     else
       provider_region = @_params[:provider_region]
-      region = MiqRegion.where(:region => provider_region).first
+      region = MiqRegion.find_by( :region => provider_region)
       if region
         region.remove_auth_key
         add_flash(_("Central Admin has been disabled"))
