@@ -246,7 +246,6 @@ class Service < ApplicationRecord
   def chargeback_report
     report_result = MiqReportResult.find_by(:name => chargeback_report_name)
     if report_result.nil?
-      _log.warn "Chargeback report for service '#{name}' not found"
       {:results => []}
     else
       {:results => report_result.result_set}
