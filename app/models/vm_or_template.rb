@@ -1802,16 +1802,6 @@ class VmOrTemplate < ApplicationRecord
     MiqTemplate.where(:id => ids).exists?
   end
 
-  def self.cloneable?(ids)
-    vms = VmOrTemplate.where(:id => ids)
-    return false if vms.blank?
-    vms.all?(&:cloneable?)
-  end
-
-  def cloneable?
-    false
-  end
-
   def supports_snapshots?
     false
   end
