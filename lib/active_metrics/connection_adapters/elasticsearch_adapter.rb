@@ -3,22 +3,26 @@ require 'active_metrics/connection_adapters/abstract_adapter'
 module ActiveMetrics
   module ConnectionAdapters
     class ElasticsearchAdapter < AbstractAdapter
-      SERIES    = "metrics".freeze
-      PRECISION = "ms".freeze
+      INDEX = "miq".freeze
+      TYPE  = "c_and_u".freeze
 
       def self.create_connection(config)
         db = config[:database]
 
         require 'elasticsearch'
-        Elasticsearch::Client.new(db, :time_precision => PRECISION, :retry => 10).tap do |client|
-          client.create_database(db) unless client.list_databases.include?(db)
-        end
+        Elasticsearch::Client.new
       end
 
       def write_multiple(*metrics)
         metrics.flatten!
-        points = metrics.map { |metric| build_point(metric) }
-        raw_connection.write_points(points)
+        points = metrics.map do |metric|
+          {
+              index: {
+                  data: build_point(metric)
+              }
+          }
+        end
+        raw_connection.bulk(index: INDEX, type: TYPE, body: points)
         metrics
       end
 
@@ -28,13 +32,12 @@ module ActiveMetrics
         raise ArgumentError, "missing resource or resource_type/resource_id pair" if resource.nil? && (resource_type.nil? || resource_id.nil?)
 
         {
-          :series    => SERIES,
-          :timestamp => (timestamp.to_f * 1000).to_i, # ms precision
-          :values    => { metric_name.to_sym => value },
-          :tags      => tags.symbolize_keys.merge(
-            :resource_type => resource ? resource.class.base_class.name : resource_type,
-            :resource_id   => resource ? resource.id : resource_id
-          ),
+            metric_name     => value,
+            :timestamp      => (timestamp.to_f * 1000).to_i, # ms precision
+            :tags           => tags.symbolize_keys.merge(
+                :resource_type => resource ? resource.class.base_class.name : resource_type,
+                :resource_id   => resource ? resource.id : resource_id
+            )
         }
       end
     end
