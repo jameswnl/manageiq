@@ -1,6 +1,6 @@
 ActiveMetrics::Base.establish_connection(
-  :adapter  => "miq_postgres",
-  # :adapter  => "influxdb",
+  # :adapter  => "miq_postgres",
+  :adapter  => "influxdb",
   # :adapter  => "hawkular_metrics",
 
   :database => "vmdb_#{Rails.env.downcase}",
