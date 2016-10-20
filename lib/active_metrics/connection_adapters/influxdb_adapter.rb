@@ -8,6 +8,7 @@ module ActiveMetrics
 
       def self.create_connection(config)
         db = config[:database]
+        _log.info "creating InfluxdbAdapter connection"
 
         require 'influxdb'
         InfluxDB::Client.new(db, :time_precision => PRECISION, :retry => 10).tap do |client|
