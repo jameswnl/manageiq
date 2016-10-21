@@ -23,8 +23,15 @@ module ActiveMetrics
         metrics
       end
 
-      def read(query)
-        raw_connection.query(query)
+      def read(query_hash)
+        metrics = query_hash[:metrics]
+        where = %w(resource_type resource_id)
+        query = "select #{metrics.join(',')} from #{SERIES} where resource_type='VmOrTemplate' and resource_id='#{id}' and time >= #{start_time.to_i*1000} and time <= #{end_time.to_i*1000}"
+
+        name, tags, points = raw_connection.query(query, epoch: PRECISION)
+        points.collect do |pt|
+            {pt.delete('time') => pt}
+        end
       end
 
       private
