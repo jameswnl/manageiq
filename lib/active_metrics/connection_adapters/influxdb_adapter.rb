@@ -23,6 +23,10 @@ module ActiveMetrics
         metrics
       end
 
+      def read(query)
+        raw_connection.query(query)
+      end
+
       private
 
       def build_point(timestamp:, metric_name:, value:, resource: nil, resource_type: nil, resource_id: nil, tags: {})
