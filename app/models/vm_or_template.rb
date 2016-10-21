@@ -15,6 +15,7 @@ class VmOrTemplate < ApplicationRecord
   include_concern 'RightSizing'
   include_concern 'Scanning'
   include_concern 'Snapshotting'
+  include_concern 'CapAndU'
 
   attr_accessor :surrogate_host
   @surrogate_host = nil

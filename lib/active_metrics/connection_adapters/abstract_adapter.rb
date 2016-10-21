@@ -35,6 +35,10 @@ module ActiveMetrics
       def write_multiple(*_metrics)
         raise NotImplementedError, "must implemented by the adapter"
       end
+
+      def read(query)
+        raise NotImplementedError, "must implemented by the adapter"
+      end
     end
   end
 end
