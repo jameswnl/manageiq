@@ -83,7 +83,12 @@ class LiveMetric < ActsAsArModel
   end
 
   def self.filter_and_fetch_metrics(resource, filter, start_time, end_time, interval_name)
-    filtered = resource.metrics_available.select { |metric| filter.nil? || filter.include?(metric[:name]) }
+    metrics = resource.metrics_available
+    if metrics.blank?
+      filtered = filter.map { |m| {:name => m, :id => m, :type => Float} }
+    else
+      filtered = metrics.select { |metric| filter.nil? || filter.include?(metric[:name]) }
+    end
     filtered.each { |metric| set_columns_hash(metric[:name] => :float) }
     fetch_live_metrics(resource, filtered, start_time, end_time, interval_name)
   end
