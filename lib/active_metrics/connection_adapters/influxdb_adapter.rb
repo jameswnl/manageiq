@@ -6,6 +6,13 @@ module ActiveMetrics
       SERIES    = "metrics".freeze
       PRECISION = "ms".freeze
 
+      def self.ts_precision(time_obj)
+        case PRECISION
+          when "ms" then (time_obj.to_f * 1000).to_i
+          when "ns" then (time_obj.to_f * 1000000).to_i
+        end
+      end
+
       def self.create_connection(config)
         db = config[:database]
         _log.info "creating InfluxdbAdapter connection"
@@ -23,14 +30,22 @@ module ActiveMetrics
         metrics
       end
 
-      def read(query_hash)
-        metrics = query_hash[:metrics]
-        where = %w(resource_type resource_id)
-        query = "select #{metrics.join(',')} from #{SERIES} where resource_type='VmOrTemplate' and resource_id='#{id}' and time >= #{start_time.to_i*1000} and time <= #{end_time.to_i*1000}"
+      def read(parm={})
+        metrics = parm[:metrics] ? parm[:metrics].join(',') : '*'
+        resource = parm[:resource]?
+            "resource_type='#{parm[:resource].class.base_class.name}' and resource_id='#{parm[:resource].id}'": nil
+        # where with time range is a must for group by time, so we always set it
+        from = "time >= #{((parm[:start_time] || 0).to_f * 1000000000).to_i}"
+        to   = "time <= #{((parm[:end_time] || Time.now).to_f * 1000000000).to_i}"
+        where_clause = "WHERE #{[resource, from, to].compact.join(' and ')}"
+        group_by_time = parm[:bucket_sec] ? "GROUP BY time(#{parm[:bucket_sec]}s)": ""
 
-        name, tags, points = raw_connection.query(query, epoch: PRECISION)
-        points.collect do |pt|
-            {pt.delete('time') => pt}
+        query = "select #{metrics} from #{SERIES} #{where_clause} #{group_by_time} fill(0)"
+        raw_connection.query(query, epoch: PRECISION).each do |name, tags, points|
+
+          return (points || []).each_with_object({}) do |pt, m|
+            m[pt.delete('time')] = pt
+          end
         end
       end
 
@@ -41,7 +56,7 @@ module ActiveMetrics
 
         {
           :series    => SERIES,
-          :timestamp => (timestamp.to_f * 1000).to_i, # ms precision
+          :timestamp => self.class.ts_precision(timestamp), # ms precision
           :values    => { metric_name.to_sym => value },
           :tags      => tags.symbolize_keys.merge(
             :resource_type => resource ? resource.class.base_class.name : resource_type,
