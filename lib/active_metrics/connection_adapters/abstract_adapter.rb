@@ -39,6 +39,10 @@ module ActiveMetrics
       def read(query)
         raise NotImplementedError, "must implemented by the adapter"
       end
+
+      def get_metrics
+        raise NotImplementedError, "must implemented by the adapter"
+      end
     end
   end
 end
