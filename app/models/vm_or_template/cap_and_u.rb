@@ -10,6 +10,7 @@ module VmOrTemplate::CapAndU
   def fetch_metrics_available
     # [{:id => metric.id, :name => @supported_metrics[metric.type_id], :type => metric.type, :unit => metric.unit}]
     # [{:id => 'cpu_used_delta_summation', :name => 'cpu_used_delta_summation', :type => Float, :unit => ''}]
+    results = tsdb_connection.get_metrics
   end
 
   def collect_live_metrics(metrics, start_time, end_time, interval)

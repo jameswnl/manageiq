@@ -687,7 +687,9 @@ module ApplicationController::Performance
                             to_dt,
                             interval_type]
       else  # Doing VIM performance on a normal CI
-        suffix = (@perf_record.kind_of?(AvailabilityZone) || @perf_record.kind_of?(HostAggregate)) ? "_cloud" : "" # Get special cloud version with 'Instances' headers
+
+        suffix = (@perf_record.kind_of?(AvailabilityZone) || @perf_record.kind_of?(HostAggregate)) ? "_cloud" : "_active" # Get special cloud version with 'Instances' headers
+        # suffix = (@perf_record.kind_of?(AvailabilityZone) || @perf_record.kind_of?(HostAggregate)) ? "_cloud" : "" # Get special cloud version with 'Instances' headers
         rpt = perf_get_chart_rpt("vim_perf_#{interval_type}#{suffix}")
         rpt.where_clause =  ["resource_type = ? and resource_id = ? and timestamp >= ? and timestamp <= ? and capture_interval_name = ?",
                              @perf_options[:model],

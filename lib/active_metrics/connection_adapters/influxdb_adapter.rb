@@ -39,12 +39,26 @@ module ActiveMetrics
         to   = "time <= #{((parm[:end_time] || Time.now).to_f * 1000000000).to_i}"
         where_clause = "WHERE #{[resource, from, to].compact.join(' and ')}"
         group_by_time = parm[:bucket_sec] ? "GROUP BY time(#{parm[:bucket_sec]}s)": ""
+        group_by_time = parm[:metrics].any? { |m| !m.include?('(') } ? '': group_by_time
 
         query = "select #{metrics} from #{SERIES} #{where_clause} #{group_by_time} fill(0)"
-        raw_connection.query(query, epoch: PRECISION).each do |name, tags, points|
+        raw_connection.query(query, epoch: PRECISION) do |name, tags, points|
 
           return (points || []).each_with_object({}) do |pt, m|
             m[pt.delete('time')] = pt
+          end
+        end
+      end
+
+      def get_metrics
+        # [{:id => 'cpu_used_delta_summation', :name => 'cpu_used_delta_summation', :type => Float, :unit => ''}]
+        raw_connection.query("show field keys") do |name, tags, field_keys|
+          return (field_keys || []).each_with_object([]) do |field, m|
+            m.push(
+              :id => field['fieldKey'],
+              :name => field['fieldKey'],
+              :type => field['fieldType'].capitalize.constantize,
+            )
           end
         end
       end
