@@ -15,7 +15,7 @@ title: "VIM Performance Daily"
 name: "VIM Performance Daily"
 
 # Main DB table report is based on
-db: LiveMetric
+db: ActiveMetric
 
 # Columns to fetch from the main table
 cols:
