@@ -192,7 +192,29 @@ module MiqReport::Generator
     # only_cols = cols
     self.extras ||= {}
 
-    if custom_results_method
+    if klass <= ActiveMetric
+      byebug
+      time_range = [Time.now-3600*24*35, Time.now]
+      # if db_options[:start_offset]
+      #   time_range = Metric::Helper.time_range_from_offset(interval, db_options[:start_offset], db_options[:end_offset], tz)
+      # end
+      where_clause = MiqExpression.merge_where_clauses(self.where_clause, options[:where_clause])
+      results = klass.find(
+          options.merge(
+              :targets          => klass,
+              :filter           => conditions,
+              :include_for_find => includes,
+              :where_clause     => where_clause,
+              :skip_count       => true,
+              :select           => cols,
+              :db_options       => db_options,
+              :interval_name    => interval,
+              :conditions       => conditions,
+              :start_time       => time_range.first,
+              :end_time         => time_range.last,
+          )
+      )
+    elsif custom_results_method
       if klass.respond_to?(custom_results_method)
         # Use custom method in DB class to get report results if defined
         results, ext = klass.send(custom_results_method, db_options[:options].merge(:userid => options[:userid], :ext_options => ext_options))
@@ -657,7 +679,9 @@ module MiqReport::Generator
       if self.class.is_trend_column?(a)
         attrs[a] = build_calculate_trend_point(rec, a)
       else
-        attrs[a] = rec.send(a) if rec.respond_to?(a)
+        if rec.respond_to?(a)
+          attrs[a] = rec.send(a)
+        end
       end
     end
     attrs = attrs.inject({}) do |h, (k, v)|
