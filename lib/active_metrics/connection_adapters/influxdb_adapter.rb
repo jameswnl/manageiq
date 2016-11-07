@@ -15,10 +15,11 @@ module ActiveMetrics
 
       def self.create_connection(config)
         db = config[:database]
+        hosts = config[:host]
         _log.info "creating InfluxdbAdapter connection"
 
         require 'influxdb'
-        InfluxDB::Client.new(db, :time_precision => PRECISION, :retry => 10).tap do |client|
+        InfluxDB::Client.new(db, :host => hosts, :time_precision => PRECISION, :retry => 10).tap do |client|
           client.create_database(db) unless client.list_databases.include?(db)
         end
       end
