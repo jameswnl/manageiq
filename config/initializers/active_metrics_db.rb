@@ -4,7 +4,7 @@ ActiveMetrics::Base.establish_connection(
   # :adapter  => "hawkular_metrics",
 
   :database => "vmdb_#{Rails.env.downcase}",
-  # :host     => "localhost",
+  :host     => "192.168.99.100",
   # :username => "root",
   # :password => "smartvm",
 )
