@@ -81,6 +81,30 @@ describe ManageIQ::Providers::Vmware::InfraManager::Vm do
     end
   end
 
+  describe "shutdown_guest" do
+  [
+      { :vm_status => {:raw_power_state => "poweredOn", :tools_status => nil},
+        :avail     => true},
+      { :vm_status => {:raw_power_state => "poweredOn", :tools_status => 'toolsNotInstalled'},
+        :avail     => false,
+        :reason    => 'tools'},
+      { :vm_status => {:raw_power_state => "poweredOff", :tools_status => nil},
+        :avail     => false,
+        :reason    => 'power'},
+      { :vm_status => {:raw_power_state => "poweredOff", :tools_status => 'toolsNotInstalled'},
+        :avail     => false,
+        :reason    => 'power'}
+  ].each do |test|
+    context "with vm_status #{test[:vm_status]}, expecting #{'not' unless test[:avail]}" do
+      it "available" do
+        vm.update_attributes(test[:vm_status])
+        expect(vm.public_send("supports_shutdown_guest?")).to be test[:avail]
+        expect(vm.unsupported_reason("shutdown_guest")).to include(test[:reason]) unless test[:avail]
+      end
+    end
+  end
+  end
+
   context "vim" do
     let(:ems) { FactoryGirl.create(:ems_vmware) }
     let(:provider_object) do
