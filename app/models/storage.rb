@@ -187,7 +187,7 @@ class Storage < ApplicationRecord
     MiqQueue.put(
       :class_name   => self.class.name,
       :instance_id  => id,
-      :method_name  => 'smartstate_analysis',
+      :method_name  => self.class.scan_via_ems? ? 'smartstate_analysis_via_ems' : 'smartstate_analysis',
       :args         => [miq_task_id],
       :msg_timeout  => self.class.scan_collection_timeout,
       :miq_callback => cb,
@@ -369,11 +369,13 @@ class Storage < ApplicationRecord
               {:table => ui_lookup(:table => "storages"), :store_type => store_type, :name => name, :id => id})
     end
 
-    hosts = active_hosts_with_authentication_status_ok
-    if hosts.empty?
-      raise(MiqException::MiqStorageError,
-            _("Check that a Host is running and has valid credentials for %{table} [%{name}] with id: [%{id}]") %
-              {:table => ui_lookup(:tables => "storage"), :name => name, :id => id})
+    if not self.class.scan_via_ems?
+      hosts = active_hosts_with_authentication_status_ok
+      if hosts.empty?
+        raise(MiqException::MiqStorageError,
+              _("Check that a Host is running and has valid credentials for %{table} [%{name}] with id: [%{id}]") %
+                {:table => ui_lookup(:tables => "storage"), :name => name, :id => id})
+      end
     end
     task_name = "SmartState Analysis for [#{name}]"
     self.class.create_scan_task(task_name, userid, [self])
