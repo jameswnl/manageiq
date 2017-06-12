@@ -68,6 +68,8 @@ class Storage < ApplicationRecord
   supports :smartstate_analysis do
     if ext_management_systems.blank? || !ext_management_system.class.supports_smartstate_analysis?
       unsupported_reason_add(:smartstate_analysis, _("Smartstate Analysis cannot be performed on selected Datastore"))
+    elsif not (ext_management_systems.any?{ |e| e.authentication_status_ok? } || active_hosts_with_authentication_status_ok)
+      unsupported_reason_add(:smartstate_analysis, _("Smartstate Analysis cannot be performed on selected Datastore: need credential"))
     end
   end
 
@@ -124,14 +126,14 @@ class Storage < ApplicationRecord
     ext_management_system.my_zone
   end
 
-  def scan_starting(miq_task_id, host)
+  def scan_starting(miq_task_id, proxy_name)
     miq_task = MiqTask.find_by(:id => miq_task_id)
     if miq_task.nil?
       _log.warn("MiqTask with ID: [#{miq_task_id}] cannot be found")
       return
     end
 
-    message = "Starting File refresh for Storage [#{name}] via Host [#{host.name}]"
+    message = "Starting File refresh for Storage [#{name}] via [#{proxy_name}]"
     miq_task.update_message(message)
   end
 
@@ -299,6 +301,10 @@ class Storage < ApplicationRecord
 
   def self.max_parallel_storage_scans_per_host
     ::Settings.storage.max_parallel_scans_per_host
+  end
+
+  def self.max_parallel_storage_scans_per_ems
+    ::Settings.storage.max_parallel_scans_per_ems
   end
 
   def self.scan_eligible_storages(zone_name = nil)
@@ -507,12 +513,26 @@ class Storage < ApplicationRecord
     ($_miq_worker_current_msg.class_name == self.class.name) && ($_miq_worker_current_msg.instance_id = id) && ($_miq_worker_current_msg.method_name == method_name)
   end
 
+  def self.scan_via_ems?
+    !::Settings.coresident_miqproxy.scan_via_host
+  end
+
   def smartstate_analysis_count_for_host_id(host_id)
     MiqQueue.where(
       :class_name  => self.class.name,
       :instance_id => id,
       :method_name => "smartstate_analysis",
       :target_id   => host_id,
+      :state       => "dequeue"
+    ).count
+  end
+
+  def smartstate_analysis_count_for_ems_id(ems_id)
+    MiqQueue.where(
+      :class_name  => self.class.name,
+      :instance_id => id,
+      :method_name => "smartstate_analysis",
+      :target_id   => ems_id,
       :state       => "dequeue"
     ).count
   end
@@ -552,11 +572,46 @@ class Storage < ApplicationRecord
     st = Time.now
     message = "Storage [#{name}] via Host [#{host.name}]"
     _log.info "#{message}...Starting"
-    scan_starting(miq_task_id, host)
+    scan_starting(miq_task_id, host.name)
     if host.respond_to?(:refresh_files_on_datastore)
       host.refresh_files_on_datastore(self)
     else
       _log.warn "#{message}...Not Supported for #{host.class.name}"
+    end
+    update_attribute(:last_scan_on, Time.now.utc)
+    _log.info "#{message}...Completed in [#{Time.now - st}] seconds"
+
+    begin
+      MiqEvent.raise_evm_job_event(self, :type => "scan", :suffix => "complete")
+    rescue => err
+      _log.warn("Error raising complete scan event for #{self.class.name} name: [#{name}], id: [#{id}]: #{err.message}")
+    end
+
+    nil
+  end
+
+  def smartstate_analysis_via_ems(miq_task_id = nil)
+    method_name = "smartstate_analysis"
+    unless miq_task_id.nil?
+      miq_task = MiqTask.find_by(:id => miq_task_id)
+      miq_task.state_active unless miq_task.nil?
+    end
+
+    max_parallel_storage_scans_per_ems = self.class.max_parallel_storage_scans_per_ems
+    if smartstate_analysis_count_for_ems_id(ext_management_system.id) >= max_parallel_storage_scans_per_ems
+      raise MiqException::MiqQueueRetryLater.new(:deliver_on => Time.now.utc + 1.minute) if qmessage?(method_name)
+    end
+
+    $_miq_worker_current_msg.update_attributes!(:target_id => ext_management_system.id) if qmessage?(method_name)
+
+    st = Time.now
+    message = "Storage [#{name}] via EMS [#{ext_management_system.name}]"
+    _log.info "#{message}...Starting"
+    scan_starting(miq_task_id, ext_management_system.name)
+    if ext_management_system.respond_to?(:refresh_files_on_datastore)
+      ext_management_system.refresh_files_on_datastore(self)
+    else
+      _log.warn "#{message}...Not Supported for #{ext_management_system.class.name}"
     end
     update_attribute(:last_scan_on, Time.now.utc)
     _log.info "#{message}...Completed in [#{Time.now - st}] seconds"
