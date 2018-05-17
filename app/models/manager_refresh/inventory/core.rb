@@ -14,6 +14,14 @@ module ManagerRefresh::Inventory::Core
       }.merge(options))
     end
 
+    def has_workflows(options = {})
+      has_inventory({
+        :model_class                 => ::Workflow,
+        :manager_ref                 => [:manager_ref],
+        :inventory_object_attributes => %i(name description survey_spec variables),
+      }.merge(options))
+    end
+
     def has_configuration_scripts(options = {})
       has_inventory({
         :model_class                 => ::ConfigurationScript,

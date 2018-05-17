@@ -3,6 +3,16 @@ module ManagerRefresh::Inventory::AutomationManager
   include ::ManagerRefresh::Inventory::Core
 
   class_methods do
+    def has_automation_manager_workflows(options = {})
+      has_workflows({
+        :model_class    => provider_module::AutomationManager::Workflow,
+        :association    => :workflows,
+        :builder_params => {
+          :manager => ->(persister) { persister.manager }
+        },
+     }.merge(options))
+    end
+
     def has_automation_manager_configuration_scripts(options = {})
       has_configuration_scripts({
         :model_class    => provider_module::AutomationManager::ConfigurationScript,
