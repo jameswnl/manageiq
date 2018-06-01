@@ -13,6 +13,16 @@ module ManagerRefresh::Inventory::AutomationManager
      }.merge(options))
     end
 
+    def has_automation_manager_workflow_nodes(options = {})
+      has_workflow_nodes({
+        :model_class    => provider_module::AutomationManager::WorkflowNode,
+        :association    => :workflow_nodes,
+        :builder_params => {
+          :manager => ->(persister) { persister.manager }
+        },
+      }.merge(options))
+    end
+
     def has_automation_manager_configuration_scripts(options = {})
       has_configuration_scripts({
         :model_class    => provider_module::AutomationManager::ConfigurationScript,

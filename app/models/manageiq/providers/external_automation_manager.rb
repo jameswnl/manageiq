@@ -6,5 +6,5 @@ class ManageIQ::Providers::ExternalAutomationManager < ManageIQ::Providers::Auto
   require_nested :ConfiguredSystem
   require_nested :OrchestrationStack
   require_nested :Workflow
-
+  require_nested :WorkflowNode
 end

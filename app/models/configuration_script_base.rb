@@ -19,20 +19,6 @@ class ConfigurationScriptBase < ApplicationRecord
   has_many   :authentications,
              :through => :authentication_configuration_script_bases
 
-  has_many   :parent_nodes,
-             :foreign_key => :child_id,
-             :class_name => "ConfigurationScriptNode"
-  has_many   :parents,
-             :through => :parent_nodes,
-             :source => :parent
-
-  has_many   :child_nodes,
-             :foreign_key => :parent_id,
-             :class_name => "ConfigurationScriptNode"
-  has_many   :children,
-             :through => :child_nodes,
-             :source => :child
-
   scope :with_manager, ->(manager_id) { where(:manager_id => manager_id) }
 
   include ProviderObjectMixin

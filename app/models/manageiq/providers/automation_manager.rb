@@ -8,11 +8,13 @@ class ManageIQ::Providers::AutomationManager < ManageIQ::Providers::BaseManager
   require_nested :InventoryRootGroup
   require_nested :OrchestrationStack
   require_nested :Workflow
+  require_nested :WorkflowNode
 
   has_many :configured_systems,           :dependent => :destroy, :foreign_key => "manager_id"
   has_many :configuration_profiles,       :dependent => :destroy, :foreign_key => "manager_id"
   has_many :configuration_scripts,        :dependent => :destroy, :foreign_key => "manager_id"
   has_many :workflows,                    :dependent => :destroy, :foreign_key => "manager_id"
+  has_many :workflow_nodes,               :dependent => :destroy, :foreign_key => "manager_id"
   has_many :credentials,                  :class_name => "ManageIQ::Providers::AutomationManager::Authentication",
            :as => :resource, :dependent => :destroy
   has_many :inventory_groups,             :dependent => :destroy, :foreign_key => "ems_id", :inverse_of => :manager

@@ -22,6 +22,14 @@ module ManagerRefresh::Inventory::Core
       }.merge(options))
     end
 
+    def has_workflow_nodes(options = {})
+      has_inventory({
+        :model_class                 => ::WorkflowNode,
+        :manager_ref                 => [:manager_ref],
+        :inventory_object_attributes => %i(conditions parent configuration_script workflow),
+      }.merge(options))
+    end
+
     def has_configuration_scripts(options = {})
       has_inventory({
         :model_class                 => ::ConfigurationScript,
