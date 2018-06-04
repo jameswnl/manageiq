@@ -3,6 +3,6 @@ class ConfigurationScript < ConfigurationScriptBase
     ConfigurationScript
   end
 
-  has_many :workflow_nodes
-  has_many :workflows, :through => :workflow_nodes
+  has_many :configuration_workflow_nodes
+  has_many :configuration_workflows, :through => :configuration_workflow_nodes
 end

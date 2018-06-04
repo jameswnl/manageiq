@@ -14,19 +14,19 @@ module ManagerRefresh::Inventory::Core
       }.merge(options))
     end
 
-    def has_workflows(options = {})
+    def has_configuration_workflows(options = {})
       has_inventory({
-        :model_class                 => ::Workflow,
+        :model_class                 => ::ConfigurationWorkflow,
         :manager_ref                 => [:manager_ref],
         :inventory_object_attributes => %i(name description survey_spec variables),
       }.merge(options))
     end
 
-    def has_workflow_nodes(options = {})
+    def has_configuration_workflow_nodes(options = {})
       has_inventory({
-        :model_class                 => ::WorkflowNode,
+        :model_class                 => ::ConfigurationWorkflowNode,
         :manager_ref                 => [:manager_ref],
-        :inventory_object_attributes => %i(conditions parent configuration_script workflow),
+        :inventory_object_attributes => %i(conditions parent configuration_script configuration_workflow),
       }.merge(options))
     end
 

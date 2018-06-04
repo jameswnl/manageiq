@@ -3,20 +3,20 @@ module ManagerRefresh::Inventory::AutomationManager
   include ::ManagerRefresh::Inventory::Core
 
   class_methods do
-    def has_automation_manager_workflows(options = {})
-      has_workflows({
-        :model_class    => provider_module::AutomationManager::Workflow,
-        :association    => :workflows,
+    def has_automation_manager_configuration_workflows(options = {})
+      has_configuration_workflows({
+        :model_class    => provider_module::AutomationManager::ConfigurationWorkflow,
+        :association    => :configuration_workflows,
         :builder_params => {
           :manager => ->(persister) { persister.manager }
         },
      }.merge(options))
     end
 
-    def has_automation_manager_workflow_nodes(options = {})
-      has_workflow_nodes({
-        :model_class    => provider_module::AutomationManager::WorkflowNode,
-        :association    => :workflow_nodes,
+    def has_automation_manager_configuration_workflow_nodes(options = {})
+      has_configuration_workflow_nodes({
+        :model_class    => provider_module::AutomationManager::ConfigurationWorkflowNode,
+        :association    => :configuration_workflow_nodes,
         :builder_params => {
           :manager => ->(persister) { persister.manager }
         },
