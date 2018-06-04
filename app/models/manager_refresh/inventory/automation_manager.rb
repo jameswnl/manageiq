@@ -10,7 +10,7 @@ module ManagerRefresh::Inventory::AutomationManager
         :builder_params => {
           :manager => ->(persister) { persister.manager }
         },
-     }.merge(options))
+      }.merge(options))
     end
 
     def has_automation_manager_configuration_workflow_nodes(options = {})

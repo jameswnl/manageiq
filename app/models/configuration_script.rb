@@ -3,6 +3,6 @@ class ConfigurationScript < ConfigurationScriptBase
     ConfigurationScript
   end
 
-  has_many :configuration_workflow_nodes
+  has_many :configuration_workflow_nodes, :dependent => :destroy
   has_many :configuration_workflows, :through => :configuration_workflow_nodes
 end
