@@ -65,7 +65,7 @@ module ManagerRefresh::Inventory::AutomationManager
 
     def has_automation_manager_inventory_root_groups(options = {})
       has_ems_folders({
-        :model_class    => provider_module::AutomationManager::InventoryRootGroup,
+        # :model_class    => provider_module::AutomationManager::InventoryRootGroup,
         :association    => :inventory_root_groups,
         :builder_params => {
           :manager => ->(persister) { persister.manager }
