@@ -192,6 +192,7 @@ class ServiceTemplateTransformationPlanTask < ServiceTemplateProvisionTask
     options[:virtv2v_wrapper] = conversion_host.run_conversion(conversion_options)
     options[:virtv2v_started_on] = start_timestamp
     options[:virtv2v_status] = 'active'
+    save
   end
 
   def get_conversion_state
@@ -215,6 +216,7 @@ class ServiceTemplateTransformationPlanTask < ServiceTemplateProvisionTask
       end
     end
     options[:virtv2v_disks] = updated_disks
+    save
   end 
 
   def kill_virtv2v(signal = 'TERM')
