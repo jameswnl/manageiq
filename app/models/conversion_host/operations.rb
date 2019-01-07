@@ -11,13 +11,14 @@ module ConversionHost::Operations
           # notify_task_status('conversion', false, "name=#{task.source.name}, id=#{task.source.id}")
           # TODO: raise Automate event to flag statemachine failure?
         ensure
-          task.save
+          task.save!
         end
       end
     end
 
     def assign_to_tasks
       pending_tasks = ServiceTemplateTransformationPlanTask.where(:state => 'active', :conversion_host => nil)
+      # this will become list of active InfraMigrationJob
       return if pending_tasks.empty?
       by_ems = pending_tasks.sort_by(&:created_on).each_with_object({}) do |task, hash|
         hash[task.destination_ems] = hash[task.destination_ems] || []
@@ -29,9 +30,16 @@ module ConversionHost::Operations
         tasks.each do |task|
           eligible_hosts = ems.conversion_hosts.select(&:eligible?).sort_by { |ch| ch.active_tasks.size }
           break if slots <= 0 || eligible_hosts.empty?
-          task.conversion_host = eligible_hosts.first
-          task.save
-          slots -= 1
+          begin
+            task.conversion_host = eligible_hosts.first
+            task.run_conversion
+            task.save!
+            _log.info("Migration task id=#{task.id} started: virtv2v_wrapper=#{task.options[:virtv2v_wrapper]}")
+            slots -= 1
+          rescue StandardError => err
+            _log.error("Migration task id=#{task.id} error: #{err}")
+            _log.log_backtrace(err)
+          end
         end
       end
     end
