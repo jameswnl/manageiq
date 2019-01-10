@@ -1,10 +1,9 @@
 class ManageIQ::Providers::InfraMigrationJob < Job
   POLL_CONVERSION_INTERVAL = 60
 
-  def self.create_job(options, migrate_task_class, migrate_task_id)
-    @conversion_polling_interval = POLL_CONVERSION_INTERVAL  # TODO: from settings
-    options[:target_class] = migrate_task_class
-    options[:target_id] = migrate_task_id
+  def self.create_job(options)
+    # TODO: expect options[:target_class] and options[:target_id]
+    options[:conversion_polling_interval] = POLL_CONVERSION_INTERVAL  # TODO: from settings
     super(name, options)
   end
 
@@ -27,7 +26,6 @@ class ManageIQ::Providers::InfraMigrationJob < Job
   #
 
   alias_method :initializing, :dispatch_start
-  # alias_method :start,        :pre_conversion
   alias_method :finish,       :process_finished
   alias_method :abort_job,    :process_abort
   alias_method :cancel,       :process_cancel
@@ -38,9 +36,8 @@ class ManageIQ::Providers::InfraMigrationJob < Job
 
     {
       :initializing     => {'initialize'       => 'waiting_to_start'},
-      :start            => {'waiting_to_start' => 'running'},
-      :pre_conversion   => {'running'          => 'running'},
-      :run_conversion   => {'running'          => 'running'},
+      :start            => {'waiting_to_start' => 'waiting_to_start'},
+      :run_conversion   => {'waiting_to_start' => 'running'},
       :poll_conversion  => {'running'          => 'running'},
       :post_conversion  => {'running'          => 'running'},
       :refresh          => {'running'          => 'refreshing'},
@@ -51,44 +48,57 @@ class ManageIQ::Providers::InfraMigrationJob < Job
     }
   end
 
+  def migration_task
+    @migration_task ||= target_entity
+  end
+
   def start
-    # TODO
-    queue_signal(:run_conversion)
+    if migration_task.options.key?(:source_vm_power_state)
+      # temp: let automate populating these first (TODO)
+      _log.info("start: to run_conversion")
+      queue_signal(:run_conversion)
+    else
+      _log.info("start: not ready to go yet")
+      queue_signal(:start)
+    end
   end
 
   def run_conversion
-    @migrate_task = target_entity
+    _log.info("run_conversion")
     begin
-      @migrate_task.run_conversion  
+      migration_task.run_conversion
+      _log.info("to poll_conversion")
+      queue_signal(:poll_conversion, :deliver_on => Time.now.utc + options[:conversion_polling_interval])
     rescue => exception
       message = "Failed to start conversion: #{exception}"
       return queue_signal(:abort_job, message, 'error')
     end
-    queue_signal(:poll_conversion, :deliver_on => Time.now.utc + @conversion_polling_interval)
   end
 
   def poll_conversion
-    @migrate_task = target_entity
+    _log.info("to get_conversion_state")
     begin
-      @migrate_task.get_conversion_state # update task.options with updates
+      migration_task.get_conversion_state # update task.options with updates
     rescue => exception
       return queue_signal(:abort_job, "Conversion error: #{exception}", 'error')
     end
 
+    _log.info("migration_task.options[:virtv2v_status]: #{migration_task.options[:virtv2v_status]}")
     update_attribute(:updated_on, Time.now.utc) # update self.updated_on to prevent timing out
-    case @migrate_task.options[:virtv2v_status]
+    case migration_task.options[:virtv2v_status]
     when 'succeeded'
       queue_signal(:post_conversion)
     when 'active'
-      queue_signal(:poll_conversion, :deliver_on => Time.now.utc + @conversion_polling_interval)
+      queue_signal(:poll_conversion, :deliver_on => Time.now.utc + options[:conversion_polling_interval])
     else
-      message = "Unknown converstion status: #{@migrate_task.options[:virtv2v_status]}"
+      message = "Unknown converstion status: #{migration_task.options[:virtv2v_status]}"
       queue_signal(:error, message, 'error')
     end
   end
 
   def post_conversion
     # TODO
+    _log.info("post_conversion")
     queue_signal(:finish)
   end
 
