@@ -195,6 +195,22 @@ class ServiceTemplateTransformationPlanTask < ServiceTemplateProvisionTask
     end
   end
 
+  def hey
+    self.options[:hey] = 'hey'
+    self.update_attributes(:options => self.options)
+  end
+
+  def hi
+    puts "hi to sleep: #{self.options[:hi]}, #{self.options[:hey]}"
+    sleep(20)
+    puts "hi up:  #{self.options[:hi]}, #{self.options[:hey]}"
+    self.with_lock do
+      self.options[:hi] = 'with_lock'
+      self.update_attributes(:options => self.options)
+      puts "hi: hi/hey updated to:  #{self.options[:hi]}, #{self.options[:hey]}"
+    end
+  end
+
   def run_conversion
     start_timestamp = Time.now.utc.strftime('%Y-%m-%d %H:%M:%S')
     updates = {}
