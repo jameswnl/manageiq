@@ -21,7 +21,6 @@ class ConversionHost < ApplicationRecord
     :unless     => ->(conversion_host) { conversion_host.resource.blank? || conversion_host.resource.ipaddresses.blank? }
 
   include_concern 'Configurations'
-  include_concern 'Operations'
 
   # To be eligible, a conversion host must have the following properties
   #  - A transport mechanism is configured for source (set by 3rd party)
