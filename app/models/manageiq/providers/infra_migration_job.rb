@@ -89,6 +89,7 @@ class ManageIQ::Providers::InfraMigrationJob < Job
     begin
       migration_task.get_conversion_state # update task.options with updates
     rescue => exception
+      _log.error e.backtrace.join("\n")
       return queue_signal(:abort_job, "Conversion error: #{exception}", 'error')
     end
 
