@@ -1,5 +1,6 @@
 class ManageIQ::Providers::InfraMigrationJob < Job
   POLL_CONVERSION_INTERVAL = 60
+  POLL_CONVERSION_HOOK_INTERVAL = 15 # TODO: decide if to parameterize retry number/interval
 
   def self.create_job(options)
     # TODO: expect options[:target_class] and options[:target_id]
@@ -36,9 +37,9 @@ class ManageIQ::Providers::InfraMigrationJob < Job
 
     {
       :initializing     => {'initialize'       => 'waiting_to_start'},
-      :start            => {'waiting_to_start' => 'waiting_to_start'},
-      # :pre_conversion   => {'waiting_to_start' => 'waiting_to_start'},
-      :run_conversion   => {'waiting_to_start' => 'running'},
+      :start            => {'waiting_to_start' => 'running'},
+      :pre_conversion   => {'waiting_to_start' => 'waiting_to_start'},
+      :run_conversion   => {'running'          => 'running'},
       :poll_conversion  => {'running'          => 'running'},
       :post_conversion  => {'running'          => 'running'},
       :refresh          => {'running'          => 'refreshing'},
@@ -55,19 +56,68 @@ class ManageIQ::Providers::InfraMigrationJob < Job
 
   def start
     # TransformationCleanup 3 things:
-      #  - kill v2v
-      #  - power_on: ignored
-      #  - check_power_on: ignore
+    #  - kill v2v
+    #  - power_on: ignored
+    #  - check_power_on: ignore
     migration_task.kill_virtv2v('KILL') # TODO: KILL or TERM
 
     if migration_task.preflight_check
       _log.info("Preflight check passed, continue")
-      queue_signal(:run_conversion)
+      playbook_serivce = migration_task.pre_ansible_playbook_service_template
+      if playbook_serivce.nil?
+        queue_signal(:run_conversion)
+      else
+        queue_signal(:pre_conversion)
+      end
     else
       _log.info("Preflight check has failed")
       message = 'Preflight check has failed'
       queue_signal(:abort_job, message, 'error')
     end
+  end
+
+  def pre_conversion
+    playbook_svc_template = migration_task.pre_ansible_playbook_service_template
+    target_host = migration_task.source
+    service_dialog_options = { :hosts => target_host.ipaddresses.first }
+    _log.info("current_user: #{User.current_user}")
+    user = User.current_user || 1
+    service_request = playbook_svc_template.provision_request(user, service_dialog_options)
+    options[:pre_playbook_service_request_id] = service_request.id
+    save!
+    queue_signal(:poll_pre_conversion, service_request.id, :deliver_on => Time.now.utc + POLL_CONVERSION_HOOK_INTERVAL)
+  end
+
+  def post_conversion
+    playbook_svc_template = migration_task.post_ansible_playbook_service_template
+    target_host = Vm.find(migration_task.options[:destination_vm_id])
+    service_dialog_options = { :hosts => target_host.ipaddresses.first }
+    _log.info("current_user: #{User.current_user}")
+    user = User.current_user || 1
+    service_request = playbook_svc_template.provision_request(user, service_dialog_options)
+    options[:post_playbook_service_request_id] = service_request.id
+    save!
+    queue_signal(:poll_post_conversion, service_request.id, :deliver_on => Time.now.utc + POLL_CONVERSION_HOOK_INTERVAL)
+  end
+
+  def poll_pre_conversion(request_id)
+    request = MiqRequest.find(request_id)
+    _log.info("Playbook service request id=#{request_id}, state=#{request.request_state} status: #{request.status}")
+    return queue_signal(:poll_pre_conversion, request_id, :deliver_on => Time.now.utc + POLL_CONVERSION_HOOK_INTERVAL) unless request.state == 'finished'
+
+    if request.status == 'Error'
+      queue_signal(:abort_job, "Pre_conversion playbook service request has failed", 'error')
+    else
+      queue_signal(:run_conversion)
+    end
+  end
+
+  def poll_post_conversion(request_id)
+    request = MiqRequest.find(request_id)
+    _log.info("Playbook service request id=#{request_id}, state=#{request.request_state} status: #{request.status}")
+    return queue_signal(:poll_post_conversion, request_id, :deliver_on => Time.now.utc + POLL_CONVERSION_HOOK_INTERVAL) unless request.state == 'finished'
+
+    queue_signal(:finish)
   end
 
   def run_conversion
@@ -89,12 +139,12 @@ class ManageIQ::Providers::InfraMigrationJob < Job
     begin
       migration_task.get_conversion_state # update task.options with updates
     rescue => exception
-      _log.error e.backtrace.join("\n")
+      _log.error(e.backtrace.join("\n"))
       return queue_signal(:abort_job, "Conversion error: #{exception}", 'error')
     end
 
     _log.info("migration_task.options[:virtv2v_status]: #{migration_task.options[:virtv2v_status]}")
-    update_attribute(:updated_on, Time.now.utc) # update self.updated_on to prevent timing out
+    update_attributes(:updated_on => Time.now.utc) # update self.updated_on to prevent timing out
     case migration_task.options[:virtv2v_status]
     when 'active'
       queue_signal(:poll_conversion, :deliver_on => Time.now.utc + options[:conversion_polling_interval])
@@ -107,12 +157,6 @@ class ManageIQ::Providers::InfraMigrationJob < Job
       message = "Unknown converstion status: #{migration_task.options[:virtv2v_status]}"
       queue_signal(:error, message, 'error')
     end
-  end
-
-  def post_conversion
-    # TODO
-    _log.info("post_conversion")
-    queue_signal(:finish)
   end
 
   def post_refresh
