@@ -204,9 +204,15 @@ class ServiceTemplateTransformationPlanTask < ServiceTemplateProvisionTask
     set_options(updates)
   end
 
+  def options=(val)
+    _log.info("JJWW: #{val}")
+    self[:options] = val  
+  end
+
   def get_conversion_state
     begin
       updates = {}
+      # byebug
       virtv2v_state = conversion_host.get_conversion_state(options[:virtv2v_wrapper]['state_file'])
       updated_disks = virtv2v_disks
       if virtv2v_state['finished'].nil?
