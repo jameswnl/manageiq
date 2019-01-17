@@ -20,6 +20,7 @@ module ConversionHost::Operations
       # pending_tasks = ServiceTemplateTransformationPlanTask.where(:state => 'active', :conversion_host => nil)
       pending_tasks = ManageIQ::Providers::InfraMigrationJob.where(:state => 'waiting_to_start')
       # this will become list of active InfraMigrationJob
+      _log.info("pending_tasks: #{pending_tasks.count}")
       return if pending_tasks.empty?
       by_ems = pending_tasks.sort_by(&:created_on).each_with_object({}) do |job, hash|
         task = job.migration_task
@@ -32,6 +33,7 @@ module ConversionHost::Operations
         tasks.each do |job|
           task = job.migration_task
           eligible_hosts = ems.conversion_hosts.select(&:eligible?).sort_by { |ch| ch.active_tasks.size }
+          _log.info("eligible: #{eligible_hosts.count}, slots: #{slots}")
           break if slots <= 0 || eligible_hosts.empty?
           begin
             task.conversion_host = eligible_hosts.first
